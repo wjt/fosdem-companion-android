@@ -611,10 +611,26 @@ public class DatabaseManager {
 			selectionArgs = null;
 		}
 
+		final String OVERLAP_SUBQUERY = String.format(
+				"SELECT e2.id"
+						+ " FROM %s e2"
+						+ " JOIN %s b2"
+						+ " ON e2.id = b2.event_id"
+						+ " WHERE e2.day_index = e.day_index"
+						+ " AND e2.end_time >= e.start_time"
+						+ " AND e2.start_time <= e.end_time"
+						+ " AND e2.id != e.id",
+				DatabaseHelper.EVENTS_TABLE_NAME,
+				DatabaseHelper.BOOKMARKS_TABLE_NAME
+		);
+
 		Cursor cursor = helper
 				.getReadableDatabase()
 				.rawQuery(
-						"SELECT e.id AS _id, e.start_time, e.end_time, e.room_name, e.slug, et.title, et.subtitle, e.abstract, e.description, GROUP_CONCAT(p.name, ', '), e.day_index, d.date, t.name, t.type, 1"
+						"SELECT e.id AS _id, e.start_time, e.end_time, e.room_name, e.slug, et.title, et.subtitle, e.abstract, e.description, GROUP_CONCAT(p.name, ', '), e.day_index, d.date, t.name, t.type, 1, "
+								+ "("
+								+ OVERLAP_SUBQUERY
+								+ ") as has_clash"
 								+ " FROM "
 								+ DatabaseHelper.BOOKMARKS_TABLE_NAME
 								+ " b"
@@ -802,6 +818,11 @@ public class DatabaseManager {
 
 	public static boolean toBookmarkStatus(Cursor cursor) {
 		return !cursor.isNull(14);
+	}
+
+	public static boolean toBookmarkClashStatus(Cursor cursor) {
+		int hasClashColumn = cursor.getColumnIndex("has_clash");
+		return hasClashColumn != -1 && !cursor.isNull(hasClashColumn);
 	}
 
 	/**
